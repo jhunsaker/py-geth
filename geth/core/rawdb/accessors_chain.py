@@ -28,7 +28,7 @@ def read_header_rlp(db, hash: bytes, number: int) -> bytes:
     return data
 
 
-def read_header(db, hash: bytes, number: int):
+def read_header(db, hash: bytes, number: int) -> dict:
 
     data = read_header_rlp(db, hash=hash, number=number)
     header_data = rlp.decode_raw(data, strict=True, preserve_cache_info=False)
