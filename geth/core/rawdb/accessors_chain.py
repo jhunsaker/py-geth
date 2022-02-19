@@ -1,29 +1,34 @@
 import rusty_rlp as rlp
 from hexbytes import HexBytes
 
-from geth.core.rawdb.schema import header_hash_key, header_key
+from geth.core.rawdb.schema import block_body_key, header_hash_key, header_key
 
 
-def _decode_signed(n: bytes) -> int:
+def _decode_signed(data: bytes) -> int:
 
-    return int.from_bytes(n, byteorder="big", signed=True)
+    return int.from_bytes(data, byteorder="big", signed=True)
 
 
-def _decode_unsigned(n: bytes) -> int:
+def _decode_unsigned(data: bytes) -> int:
 
-    return int.from_bytes(n, byteorder="big", signed=False)
+    return int.from_bytes(data, byteorder="big", signed=False)
+
+
+def rlp_decode(data: bytes):
+
+    return rlp.decode_raw(data, strict=True, preserve_cache_info=False)
 
 
 def read_canonical_hash(db, number: int) -> bytes:
 
-    key = header_hash_key(number)
+    key = header_hash_key(number=number)
     hash = db.get(key)
     return hash
 
 
 def read_header_rlp(db, hash: bytes, number: int) -> bytes:
 
-    key = header_key(number, hash)
+    key = header_key(number=number, hash=hash)
     data = db.get(key)
     return data
 
@@ -31,7 +36,7 @@ def read_header_rlp(db, hash: bytes, number: int) -> bytes:
 def read_header(db, hash: bytes, number: int) -> dict:
 
     data = read_header_rlp(db, hash=hash, number=number)
-    header_data = rlp.decode_raw(data, strict=True, preserve_cache_info=False)
+    header_data = rlp_decode(data)
     header_data = header_data[0]
 
     # names translated from go code:
@@ -55,3 +60,27 @@ def read_header(db, hash: bytes, number: int) -> dict:
         "nonce": _decode_unsigned(header_data[14]),      # 64-bit val;   `json:"nonce"`
     }
     return header
+
+
+def read_body_rlp(db, hash: bytes, number: int) -> bytes:
+
+    key = block_body_key(number=number, hash=hash)
+    data = db.get(key)
+    return data
+
+
+def read_body(db, hash: bytes, number: int):
+
+    data = read_body_rlp(db, hash=hash, number=number)
+    body_data = rlp_decode(data)
+    body_data = body_data[0]
+    transactions = body_data[0]
+    assert isinstance(transactions, (list,))
+    for transaction in transactions:
+        assert isinstance(transaction, (list, bytes))
+    uncles = body_data[1]
+    body = {
+        "transactions": transactions,
+        "uncles": uncles,
+    }
+    return body
